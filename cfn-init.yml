@@ -1,0 +1,288 @@
+Parameters:
+  Environment:
+    Description: "Application Environment"
+    Type: String
+    Default: development
+    AllowedValues:
+      - development
+      - testing
+      - acceptance
+      - production
+  VPCCIDR:
+    Description: VPC CIDR Block
+    Type: String
+    Default: 66.6.0.0/16
+  SNCIDRs: 
+    Description: "Comma-delimited list of CIDR blocks"
+    Type: CommaDelimitedList
+    Default: "66.6.0.0/24, 66.6.1.0/24, 66.6.2.0/24, 66.6.3.0/24, 66.6.4.0/24, 66.6.5.0/24, 66.6.6.0/24, 66.6.7.0/24, 66.6.8.0/24, 66.6.9.0/24, 66.6.10.0/24, 66.6.11.0/24"
+  AMI:
+    Description: Latest EC2 AMI 
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2'    
+  VolumeSize:
+    Description: EBS Volume size
+    Type: Number
+    Default: 8
+    MinValue: 8
+    MaxValue: 1024
+    ConstraintDescription: must be a number between 8 to 1024 Gb
+Mappings:
+  EC2TypeBasedOnEnv:
+    development: 
+      instanceType: t2.micro
+      KeyPair: dev
+    testing:
+      instanceType: t2.micro
+      KeyPair: test
+    acceptance:
+      instanceType: t2.micro
+      KeyPair: acc
+    production:
+      instanceType: t2.micro
+      KeyPair: prod
+    
+Metadata:
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      -
+        Label:
+          default: "Environment"
+        Parameters:
+          - Environment
+      -
+        Label:
+          default: "Network"
+        Parameters:
+          - VPCCIDR
+          - SNCIDRs
+      - 
+        Label: 
+          default: "EC2 Configuration"
+        Parameters: 
+          - AMI
+          - InstanceType
+          - Keynames
+          - VolumeSize
+Conditions:
+  Createprod: !Equals 
+    - !Ref Environment
+    - production
+  Createdev: !Equals 
+    - !Ref Environment
+    - development
+  Createacc: !Equals 
+    - !Ref Environment
+    - acceptance
+  Createtest: !Equals 
+    - !Ref Environment
+    - testing
+Resources:
+  IAM:
+    Type: AWS::IAM::User
+    Condition: Createacc
+    Properties: 
+      Groups: 
+        - admin
+      LoginProfile: 
+        Password: pw4me1234!
+        PasswordResetRequired: No
+      UserName: ACCuser
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: CF Test
+  SNa:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [0, !Ref SNCIDRs]
+      AvailabilityZone: 
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: 'True'
+      Tags:
+        - Key: Name
+          Value: SNa Pub  
+  SNb:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [1, !Ref SNCIDRs]
+      AvailabilityZone: 
+        Fn::Select: 
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: 'True'
+      Tags:
+        - Key: Name
+          Value: SNb Pub
+  CfRt:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: CF RT
+  CfR:
+    Type: 'AWS::EC2::Route'
+    DependsOn:
+      - IGW
+    Properties:
+      RouteTableId: !Ref CfRt
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+  SNAassociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SNa
+      RouteTableId: !Ref CfRt
+  IGW:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CF IGW
+  IGWAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+  wssg:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow http to client host
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: WSa SG
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+  In1:
+    Type: AWS::EC2::Instance
+    Metadata:
+      Comment: Install a simple application
+      'AWS::CloudFormation::Init':
+        config:
+          packages:
+            yum:
+              httpd: []
+          files:
+            /var/www/html/index.html:
+              content: "<h1>Hello World!</h1>"
+              mode: '000644'
+              owner: root
+              group: root
+            /etc/cfn/cfn-hup.conf:
+              content: !Join 
+                - ''
+                - - |
+                    [main]
+                  - stack=
+                  - !Ref 'AWS::StackId'
+                  - |+
+
+                  - region=
+                  - !Ref 'AWS::Region'
+                  - |+
+
+              mode: '000400'
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Join 
+                - ''
+                - - |
+                    [cfn-auto-reloader-hook]
+                  - |
+                    triggers=post.update
+                  - >
+                    path=Resources.In1.Metadata.AWS::CloudFormation::Init
+                  - 'action=/opt/aws/bin/cfn-init -v '
+                  - '         --stack '
+                  - !Ref 'AWS::StackName'
+                  - '         --resource In1 '
+                  - '         --region '
+                  - !Ref 'AWS::Region'
+                  - |+
+
+                  - |
+                    runas=root
+              mode: '000400'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+    Properties:
+      KeyName: !FindInMap [EC2TypeBasedOnEnv, !Ref Environment, KeyPair]
+      ImageId: !Ref AMI
+      InstanceType: !FindInMap [EC2TypeBasedOnEnv, !Ref Environment, instanceType]
+      SubnetId: !Ref SNa
+      Monitoring: false
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/xvda"
+        Ebs: 
+          VolumeType: "gp2"
+          DeleteOnTermination: "true"
+          VolumeSize: !Ref VolumeSize
+      SecurityGroupIds:
+        - !Ref wssg
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - |
+              #!/bin/bash -xe
+            - |
+              yum update -y aws-cfn-bootstrap
+            - |
+              yum update -y aws-cli
+            - '/opt/aws/bin/cfn-init -v '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource In1 '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource In1 '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+            
+      Tags:
+        - Key: Name
+          Value: Test Server  
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M      
+ 

@@ -1,0 +1,20 @@
+Resources:   
+  IAMGroup:
+    Description: Acceptance Group Testing
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: Acceptance
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+  IAMuser:
+    Description: Acceptance User
+    DependsOn: IAMGroup
+    Type: AWS::IAM::User
+    Properties: 
+      Groups: 
+        - Acceptance
+      LoginProfile: 
+        Password: pw4me1234!
+        PasswordResetRequired: No
+      UserName: ACCuser
