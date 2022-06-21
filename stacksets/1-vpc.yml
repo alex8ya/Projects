@@ -1,4 +1,3 @@
-testing
 Parameters:
   VPCCIDR:
     Description: VPC CIDR Block
