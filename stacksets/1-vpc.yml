@@ -1,3 +1,4 @@
+testing
 Parameters:
   VPCCIDR:
     Description: VPC CIDR Block
@@ -294,4 +295,9 @@ Resources:
     Properties:
       SubnetId: !Ref SNfPriv
       RouteTableId: !Ref NATRt
-  
+Outputs:
+  VPCid:
+    Description: VPC info
+    Value: !Ref VPC
+    Export: 
+      Name: VPC
