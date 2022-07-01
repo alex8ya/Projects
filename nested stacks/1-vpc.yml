@@ -238,65 +238,69 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref IGW
-  NATRt:
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: CF NAT RT
-  NATR:
-    Type: AWS::EC2::Route 
-    Properties:
-      RouteTableId: !Ref NATRt
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATgw
-  EIP:
-    DependsOn: IGWAttachment
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-  NATgw:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId:
-        Fn::GetAtt:
-        - EIP
-        - AllocationId
-      SubnetId: !Ref SNa
-  PSNAassociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref SNaPriv
-      RouteTableId: !Ref NATRt
-  PSNBassociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref SNbPriv
-      RouteTableId: !Ref NATRt
-  PSNCassociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref SNcPriv
-      RouteTableId: !Ref NATRt
-  PSNDassociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref SNdPriv
-      RouteTableId: !Ref NATRt
-  PSNEassociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref SNePriv
-      RouteTableId: !Ref NATRt
-  PSNFassociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref SNfPriv
-      RouteTableId: !Ref NATRt
 Outputs:
   VPCid:
     Description: VPC info
     Value: !Ref VPC
     Export: 
       Name: VPC
+  SnAid:
+    Description: SnA info
+    Value: !Ref SNa
+    Export:
+      Name: SNa
+  SBAid:
+    Description: SnB info
+    Value: !Ref SNb
+    Export:
+      Name: SNb
+  SnCid:
+    Description: SnC info
+    Value: !Ref SNc
+    Export:
+      Name: SNc
+  SnDid:
+    Description: SnD info
+    Value: !Ref SNd
+    Export:
+      Name: SNd
+  SnEid:
+    Description: SnE info
+    Value: !Ref SNe 
+    Export:
+      Name: SNe
+  SnFid:
+    Description: SnF info
+    Value: !Ref SNf
+    Export:
+      Name: SNf
+  PSnAid: 
+    Description: Private SnA info 
+    Value: !Ref SNaPriv 
+    Export:
+      Name: PSNa  
+  PSnBid: 
+    Description: Private SnB info 
+    Value: !Ref SNbPriv 
+    Export:
+      Name: PSNb
+  PSnCid: 
+    Description: Private SnC info 
+    Value: !Ref SNcPriv 
+    Export:
+      Name: PSNc
+  PSnDid: 
+    Description: Private SnD info 
+    Value: !Ref SNdPriv
+    Export:
+      Name: PSNd
+  PSnEid: 
+    Description: Private SnE info 
+    Value: !Ref SNePriv
+    Export:
+      Name: PSNe
+  PSnFid: 
+    Description: Private SnF info 
+    Value: !Ref SNfPriv
+    Export:
+      Name: PSNf

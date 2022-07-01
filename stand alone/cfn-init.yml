@@ -78,16 +78,6 @@ Conditions:
     - !Ref Environment
     - testing
 Resources:
-  IAM:
-    Type: AWS::IAM::User
-    Condition: Createacc
-    Properties: 
-      Groups: 
-        - admin
-      LoginProfile: 
-        Password: pw4me1234!
-        PasswordResetRequired: No
-      UserName: ACCuser
   VPC:
     Type: 'AWS::EC2::VPC'
     Properties:
